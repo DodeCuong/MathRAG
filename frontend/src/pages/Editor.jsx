@@ -1,11 +1,14 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useBlocker, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { api } from '../api.js'
-import { toRemarkMath } from '../mathDelims.js'
+import { toPreviewMarkdown } from '../mathDelims.js'
 
+const REMARK = [remarkGfm, remarkMath]
 // throwOnError: false renders a broken formula in red instead of crashing the preview.
 const REHYPE = [[rehypeKatex, { throwOnError: false, strict: false }]]
 
@@ -20,8 +23,17 @@ export default function Editor() {
 
   // Deferred value keeps typing responsive while KaTeX re-renders the preview.
   const preview = useDeferredValue(content)
-  const markdown = useMemo(() => toRemarkMath(preview), [preview])
+  const markdown = useMemo(() => toPreviewMarkdown(preview), [preview])
   const dirty = doc !== null && (content !== (doc.content ?? '') || title !== doc.title)
+
+  // In-app navigation (links, back button) with unsaved edits; tab close is handled by beforeunload below.
+  const deleted = useRef(false)
+  const blocker = useBlocker(() => dirty && !deleted.current)
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (window.confirm('Bạn có thay đổi chưa lưu. Rời trang và bỏ thay đổi?')) blocker.proceed()
+    else blocker.reset()
+  }, [blocker])
 
   useEffect(() => {
     api(`/api/documents/${id}`)
@@ -73,6 +85,7 @@ export default function Editor() {
     if (!window.confirm(`Xoá "${doc.title}"? Không thể hoàn tác.`)) return
     run(async () => {
       await api(`/api/documents/${id}`, { method: 'DELETE' })
+      deleted.current = true // nothing left to save, don't ask
       navigate('/', { replace: true })
     })
   }
@@ -107,7 +120,7 @@ export default function Editor() {
           onChange={(e) => setContent(e.target.value)}
         />
         <section aria-label="Xem trước" className="preview">
-          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={REHYPE}>
+          <ReactMarkdown remarkPlugins={REMARK} rehypePlugins={REHYPE}>
             {markdown}
           </ReactMarkdown>
         </section>

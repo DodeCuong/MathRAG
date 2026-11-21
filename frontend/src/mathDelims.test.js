@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { toRemarkMath } from './mathDelims.js'
+import { tablesToMarkdown, toPreviewMarkdown, toRemarkMath } from './mathDelims.js'
 
 test('inline math', () => {
   assert.equal(toRemarkMath('dim \\(d_{k}\\) and \\(Q\\)'), 'dim $d_{k}$ and $Q$')
@@ -20,5 +20,39 @@ test('real Nougat output', () => {
   assert.equal(
     toRemarkMath(s),
     '\n$$\n\\mathrm{Attention}(Q,K,V)=\\mathrm{softmax}(\\frac{QK^{T}}{\\sqrt{d_{k}}})V\n$$\n (1)',
+  )
+})
+
+test('tabular becomes a GFM table with header, padding and math', () => {
+  const s = String.raw`\begin{table}
+\begin{tabular}{l c c} \hline Model & BLEU & Cost \\ \hline
+Base & \(27.3\) & \(3.3\cdot 10^{18}\) \\
+\multicolumn{2}{c}{Big} \\ \hline
+\end{tabular}
+\end{table}`
+  assert.equal(
+    toPreviewMarkdown(s),
+    String.raw`
+
+| Model | BLEU | Cost |
+| --- | --- | --- |
+| Base | $27.3$ | $3.3\cdot 10^{18}$ |
+| Big |  |  |
+
+`,
+  )
+})
+
+test('caption kept as text, pipes in cells escaped', () => {
+  assert.equal(
+    tablesToMarkdown(String.raw`\caption{Results}
+\begin{tabular}{cc}a|b & c\end{tabular}`),
+    String.raw`
+Results
+
+
+| a\|b | c |
+| --- | --- |
+`,
   )
 })
