@@ -1,0 +1,16 @@
+flask
+flask-cors
+flask-sqlalchemy
+pymysql
+python-dotenv
+google-auth
+requests
+pyjwt
+boto3
+# OCR — install torch for your CUDA version first: https://pytorch.org/get-started/locally/
+transformers
+pypdfium2
+pillow
+# needed by NougatProcessor.post_process_generation
+nltk
+Levenshtein
