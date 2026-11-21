@@ -25,14 +25,21 @@
 ## API
 
 ```
-POST   /api/auth/google            {credential} → {token, user}
-GET    /api/documents              → danh sách tài liệu của user
-POST   /api/documents              (multipart) → {id, status: "processing"}
-GET    /api/documents/:id          → {status, content, original_url, error}
+POST   /api/auth/google            {credential} → {token, user: {id, email, name}}
+GET    /api/auth/me                → {user}
+GET    /api/documents              → [{id, title, status, error, created_at}]
+POST   /api/documents              (multipart, field "file") → {id, status: "processing"}
+GET    /api/documents/:id          → {id, title, status, content, original_url, error}
 PUT    /api/documents/:id          {title, content}
 DELETE /api/documents/:id
 GET    /api/documents/:id/download → file .tex
 ```
+
+Quy ước, đã khớp với frontend:
+- Mọi endpoint `/api/documents` đều đặt `@login_required` (import từ `app.auth`). Decorator này gán `g.user_id`, và frontend gửi kèm header `Authorization: Bearer <jwt>`.
+- Khi lỗi thì trả `{"error": "<message tiếng Việt>"}` kèm mã HTTP 4xx/5xx. Frontend hiển thị nguyên văn message này.
+- `original_url` phải mở được **mà không cần header** (presigned URL của S3), vì `<img>` và `<iframe>` không gửi kèm JWT. Đường dẫn trong URL phải có đuôi file (`.pdf`, `.png`…), vì frontend dựa vào đuôi file để chọn hiển thị bằng iframe hay img.
+- `created_at` trả về dạng ISO 8601.
 
 ## Database
 
@@ -45,14 +52,14 @@ documents(id, user_id FK, title, original_key, content MEDIUMTEXT,
 ## Cấu trúc thư mục
 
 ```
-frontend/              React + Vite (Dương)
+frontend/              React + Vite (Dương): pages/Login, Dashboard, Editor; api.js; mathDelims.js
 backend/
   run.py               chạy Flask
-  tests/test_tex.py    test cho tex.py
+  tests/               test_tex.py, test_auth.py
   app/__init__.py      create_app, CORS, đăng ký blueprint
-  app/auth.py          Google login, JWT (Dương)
+  app/auth.py          Google login, JWT, @login_required (đã xong)
   app/documents.py     API tài liệu (Thành)
-  app/models.py        SQLAlchemy models (Thành)
+  app/models.py        SQLAlchemy models: User (đã có), Document (Thành)
   app/ocr.py           Nougat: ocr(path) -> mmd (đã xong)
   app/tex.py           mmd_to_tex() (đã xong)
 docker-compose.yml     MySQL cho môi trường dev
@@ -63,6 +70,8 @@ docker-compose.yml     MySQL cho môi trường dev
 **Cách chia việc:** phần database ít việc hơn frontend, nên Thành nhận thêm các API quản lý tài liệu và S3. Dương nhận phần đăng nhập ở backend (vì gắn liền với frontend).
 
 **Đã xong trước lịch (21/11):** `ocr.py` (ban đầu là việc ngày 3 của Thành) và `tex.py` (ban đầu là việc ngày 6–7 của Dương). Các việc sau đó được kéo lên sớm hơn, nên Mốc 2 (deploy) sớm hơn 1 ngày và có thêm 1 ngày để thử với tài liệu thật.
+
+**Nhánh `fe/duong-week1` (21/11):** đã code xong các việc của Dương từ ngày 2 đến ngày 9: Login, `POST /auth/google`, `@login_required`, Upload (gộp vào Dashboard thay vì làm trang riêng), Dashboard có polling, Editor 3 cột có xem trước KaTeX, các nút Lưu / Tải .tex / Xoá, cảnh báo khi rời trang mà chưa lưu, giao diện mobile. **Chưa chạy được trọn luồng** vì đang chờ API `/api/documents` của Thành và OAuth Client ID (việc ngày 1). Ngày 1 vẫn phải tạo OAuth Client; các ngày còn lại Dương dùng để tích hợp với API của Thành và sửa lỗi.
 
 ### Tuần 1: chạy được trọn luồng ở máy local
 
