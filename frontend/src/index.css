@@ -124,6 +124,8 @@ button.danger { color: var(--danger); }
   background: var(--bg);
 }
 .preview { padding: 0 16px; }
+.preview table { border-collapse: collapse; margin: 12px 0; }
+.preview th, .preview td { border: 1px solid var(--border); padding: 4px 10px; }
 
 @media (max-width: 900px) {
   .editor { grid-template-columns: 1fr; height: auto; }

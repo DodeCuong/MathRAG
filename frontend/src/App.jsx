@@ -1,8 +1,7 @@
-import { Link, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { Link, Navigate, Outlet, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { session } from './api.js'
 import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import Editor from './pages/Editor.jsx'
 
 function Layout() {
   if (!session.token) return <Navigate to="/login" replace />
@@ -28,15 +27,23 @@ function Layout() {
   )
 }
 
+// Data router (not <BrowserRouter>) because Editor needs useBlocker and route-level lazy loading.
+const router = createBrowserRouter([
+  { path: '/login', element: <Login /> },
+  {
+    element: <Layout />,
+    children: [
+      { index: true, element: <Dashboard /> },
+      {
+        path: 'documents/:id',
+        // Editor pulls in KaTeX + markdown (~70% of the bundle); load it only when opened.
+        lazy: () => import('./pages/Editor.jsx').then((m) => ({ Component: m.default })),
+      },
+    ],
+  },
+  { path: '*', element: <Navigate to="/" replace /> },
+])
+
 export default function App() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="documents/:id" element={<Editor />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
+  return <RouterProvider router={router} />
 }
